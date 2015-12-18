@@ -25,12 +25,12 @@ def explore_city_data(city_data):
 
     # Please calculate the following values using the Numpy library
     # Size of data (number of houses)?
-    print "house prices count:"
-    print housing_prices.size
+    print "number of data points:"
+    print housing_features.size
 
     # Number of features?
     print "features count:"
-    print housing_features.size
+    print housing_features.shape[1]
 
     # Minimum price?
     print "minimum price:"
@@ -52,6 +52,19 @@ def explore_city_data(city_data):
     print "standard deviation:"
     print np.std(housing_prices)
 
+    q75 = np.percentile(housing_prices, 75)
+    q25 = np.percentile(housing_prices, 25)
+    iqr = q75 - q25
+    print "interquartile range:"
+    print iqr
+
+    outlier_count = 0
+    for i in housing_prices:
+        if i < q25 - 1.5 * iqr or i > q75 + 1.5 * iqr:
+            outlier_count += 1
+    print "outlier count:"
+    print outlier_count
+
 
 def split_data(city_data):
     """Randomly shuffle the sample set. Divide it into 70 percent training and 30 percent testing data."""
@@ -59,7 +72,7 @@ def split_data(city_data):
     # Get the features and labels from the Boston housing data
     X, y = city_data.data, city_data.target
 
-    X_train, X_test, y_train, y_test = cross_validation.train_test_split(X, y, test_size=0.3, random_state=1337)
+    X_train, X_test, y_train, y_test = cross_validation.train_test_split(X, y, test_size=0.3)
     return X_train, y_train, X_test, y_test
 
 
@@ -168,7 +181,7 @@ def fit_predict_model(city_data):
     # one used in your performance_metric procedure above:
     # http://scikit-learn.org/stable/modules/generated/sklearn.metrics.make_scorer.html
 
-    scorer = metrics.make_scorer(performance_metric)
+    scorer = metrics.make_scorer(metrics.mean_absolute_error, greater_is_better=False)
 
     # 2. We will use grid search to fine tune the Decision Tree Regressor and
     # obtain the parameters that generate the best training performance. Set up
@@ -194,7 +207,17 @@ def fit_predict_model(city_data):
     print reg.best_score_
 
 
-# In the case of the documentation page for GridSearchCV, it might be the case that the example is just a demonstration of syntax for use of the function, rather than a statement about
+def rinse_and_repeat(city_data):
+    parameters = {'max_depth': (1, 2, 3, 4, 5, 6, 7, 8, 9, 10)}
+    scorer = metrics.make_scorer(metrics.mean_absolute_error, greater_is_better=False)
+    model = GridSearchCV(estimator=DecisionTreeRegressor(), param_grid=parameters, scoring=scorer, n_jobs=-1)
+    model.fit(city_data.data, city_data.target)
+    house = [11.95, 0.00, 18.100, 0, 0.6590, 5.6090, 90.00, 1.385, 24, 680.0, 20.20, 332.09, 12.13]
+    prediction = model.predict([house])
+    best_depth = model.best_params_['max_depth']
+    return {'prediction': prediction[0], 'best_depth': best_depth}
+
+
 def main():
     """Analyze the Boston housing data. Evaluate and validate the
     performanance of a Decision Tree regressor on the housing data.
@@ -219,6 +242,23 @@ def main():
 
     # Tune and predict Model
     fit_predict_model(city_data)
+
+    aggregate_result = {'predictions': [], 'best_depths': []}
+    for _ in range(30):
+        result = rinse_and_repeat(city_data)
+        aggregate_result['predictions'].append(result['prediction'])
+        aggregate_result['best_depths'].append(result['best_depth'])
+    depths = np.array(aggregate_result['best_depths'])
+    predictions = np.array(aggregate_result['predictions'])
+
+    print "best depths:"
+    print depths
+    print "depths mode:"
+    print np.argmax(np.bincount(depths))
+    print "predictions:"
+    print predictions
+    print "predictions average:"
+    print np.mean(predictions)
 
 
 if __name__ == "__main__":
