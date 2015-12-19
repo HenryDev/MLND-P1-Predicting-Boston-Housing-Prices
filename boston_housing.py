@@ -8,6 +8,7 @@ from sklearn.tree import DecisionTreeRegressor
 from sklearn import cross_validation
 from sklearn import metrics
 from sklearn.grid_search import GridSearchCV
+from sklearn.neighbors import NearestNeighbors
 
 
 def load_data():
@@ -218,6 +219,14 @@ def rinse_and_repeat(city_data):
     return {'prediction': prediction[0], 'best_depth': best_depth}
 
 
+def find_nearest_neighbor_indexes(features):
+    neighbor_model = NearestNeighbors(n_neighbors=10)
+    neighbor_model.fit(features)
+    x = [11.95, 0.00, 18.100, 0, 0.6590, 5.6090, 90.00, 1.385, 24, 680.0, 20.20, 332.09, 12.13]
+    distance, indices = neighbor_model.kneighbors([x])
+    return indices
+
+
 def main():
     """Analyze the Boston housing data. Evaluate and validate the
     performanance of a Decision Tree regressor on the housing data.
@@ -258,7 +267,16 @@ def main():
     print "predictions:"
     print predictions
     print "predictions average:"
-    print np.mean(predictions)
+    average_prediction = np.mean(predictions)
+    print average_prediction
+
+    indices = find_nearest_neighbor_indexes(city_data.data)
+    neighbor_prices_total = []
+    for i in indices:
+        neighbor_prices_total.append(city_data.target[i])
+
+    print "nearest neighbors average:"
+    print np.mean(neighbor_prices_total)
 
 
 if __name__ == "__main__":
